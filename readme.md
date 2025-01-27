@@ -60,11 +60,9 @@ helm install grafana grafana/grafana \
   --set readinessProbe.httpGet.port=3000
 
 kubectl get secret --namespace grafana grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
-password - bayrZ4bJrEEz208OW6JQlfJyQAQ2Zo3t1SNroHau
+password - bzjqhLGMRbCWXQb4CheNypbzIv71wlpGVB9VJMQP
 
+export POD_NAME=$(kubectl get pods --namespace grafana -l "app.kubernetes.io/name=grafana,app.kubernetes.io/instance=grafana" -o jsonpath="{.items[0].metadata.name}")
 
-
-
-
-
-
+kubectl --namespace grafana port-forward --address 0.0.0.0 $POD_NAME 3000
+http://<EC2-IP>:3000
