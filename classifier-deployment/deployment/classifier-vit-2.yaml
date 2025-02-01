@@ -1,0 +1,26 @@
+apiVersion: "serving.kserve.io/v1beta1"
+kind: "InferenceService"
+metadata:
+  name: "classifier-vit"
+  annotations:
+    serving.kserve.io/enable-metric-aggregation: "true"
+    serving.kserve.io/enable-prometheus-scraping: "true"
+    autoscaling.knative.dev/target: "1"
+spec:
+  predictor:
+    minReplicas: 2
+    maxReplicas: 3
+    containerConcurrency: 3
+    canaryTrafficPercent: 100
+    serviceAccountName: s3-read-only
+    pytorch:
+      protocolVersion: v1
+      storageUri: s3://canary-models-vit/kserve/faces-age-detection/
+      image: pytorch/torchserve-kfs:0.12.0
+      resources:
+        limits:
+          cpu: 2000m
+          memory: 4Gi
+      env:
+        - name: TS_DISABLE_TOKEN_AUTHORIZATION
+          value: "true"

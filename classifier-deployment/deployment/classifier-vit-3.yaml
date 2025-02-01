@@ -1,21 +1,21 @@
 apiVersion: "serving.kserve.io/v1beta1"
 kind: "InferenceService"
 metadata:
-  name: "emotions-classifier-vit"
+  name: "classifier-vit"
   annotations:
     serving.kserve.io/enable-metric-aggregation: "true"
     serving.kserve.io/enable-prometheus-scraping: "true"
     autoscaling.knative.dev/target: "1"
 spec:
   predictor:
-    minReplicas: 0
+    minReplicas: 2
     maxReplicas: 3
     containerConcurrency: 3
-    # canaryTrafficPercent: 100
+    canaryTrafficPercent: 100
     serviceAccountName: s3-read-only
     pytorch:
       protocolVersion: v1
-      storageUri: s3://canary-models-vit/kserve/emotions-classifier/
+      storageUri: s3://canary-models-vit/kserve/hand-gestures-classifier/
       image: pytorch/torchserve-kfs:0.12.0
       resources:
         limits:
