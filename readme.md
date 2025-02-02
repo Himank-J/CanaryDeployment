@@ -1,68 +1,87 @@
-# Install KServe with KNative and ISTIO
+# Implementation of Canary Deployment using EKS, Torchscript and S3
 
-kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+This project demonstrates execution of canary deployment strategy for deployment of AI/ML models and the steps needed to achieve 100% rollout using this strategy. We will be making use of Elastic Kubernetes Service (EKS), Torchscript for creating model files and S3 for storing model files.
 
-kubectl apply -f https://github.com/knative/serving/releases/download/knative-v1.16.0/serving-crds.yaml
+Contents - 
+1. [What is Canary Deploment?](#what-is-canary-deployment)
+2. [Why Canary Deployment is Needed for Production?](#why-canary-deployment-is-needed-for-production)
+   
+# What is Canary Deploment?
 
-kubectl apply -f https://github.com/knative/serving/releases/download/knative-v1.16.0/serving-core.yaml
+Canary deployment is a progressive rollout strategy used to deploy new software versions, including ML models, with minimal risk. It ensures that a small subset of users interacts with the new version before rolling it out to the entire user base.
 
-kubectl apply -f https://github.com/knative/net-istio/releases/download/knative-v1.16.0/istio.yaml
+## **Working -**
 
-kubectl apply -f https://github.com/knative/net-istio/releases/download/knative-v1.16.0/net-istio.yaml
+1. Baseline Model (Old Version) is Live
 
-kubectl patch configmap/config-domain \
-      --namespace knative-serving \
-      --type merge \
-      --patch '{"data":{"project.emlo":""}}'
+	- The existing model serves all traffic as the stable version.
 
-kubectl apply -f https://github.com/knative/serving/releases/download/knative-v1.16.0/serving-hpa.yaml
+2. Deploy New Model to a Small User Subset
 
-kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.16.2/cert-manager.yaml
+	- A small percentage (e.g., 5-10%) of incoming traffic is routed to the new model (the “canary”).
+	- Performance is closely monitored to detect issues (e.g., accuracy drop, latency increase).
 
-kubectl apply --server-side -f https://github.com/kserve/kserve/releases/download/v0.14.1/kserve.yaml
+3. Monitor Performance Metrics
 
-kubectl apply --server-side -f https://github.com/kserve/kserve/releases/download/v0.14.1/kserve-cluster-resources.yaml
+	- Track key indicators such as accuracy, response time, error rate, and business impact (e.g., conversion rate).
+	- Compare results with the old version to ensure improvements.
 
-eksctl create iamserviceaccount \
-	--cluster=canary-cluster \
-	--name=s3-read-only \
-	--attach-policy-arn=arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess \
-	--override-existing-serviceaccounts \
-	--region ap-south-1 \
-	--approve
+4. Gradual Traffic Increase
 
-kubectl apply -f s3-secret.yaml
+	- If the new model performs well, traffic allocation is increased (e.g., 25%, 50%, 100%) in controlled steps.
+	- If issues arise, the deployment is rolled back without affecting most users.
 
-kubectl patch serviceaccount s3-read-only -p '{"secrets": [{"name": "s3-secret"}]}'
+5. Full Rollout or Rollback
 
-# Prometheus & Graphana
+	- If the new model is stable, it replaces the old model entirely.
+	- If significant issues are found, traffic is reverted to the old model, ensuring minimal disruption.
 
-git clone --branch release-0.14 https://github.com/kserve/kserve.git
+## Why Canary Deployment is Needed for Production?
 
-cd kserve 
-kubectl apply -k docs/samples/metrics-and-monitoring/prometheus-operator
-kubectl wait --for condition=established --timeout=120s crd/prometheuses.monitoring.coreos.com
-kubectl wait --for condition=established --timeout=120s crd/servicemonitors.monitoring.coreos.com
-kubectl apply -k docs/samples/metrics-and-monitoring/prometheus
+1. Risk Mitigation 🚨
+	- Instead of exposing all users to a potentially faulty model, only a fraction of traffic experiences it.
+	- If issues are detected, the rollout can be stopped or reversed before widespread impact.
 
-kubectl patch configmaps -n knative-serving config-deployment --patch-file qpext_image_patch.yaml
+2. Controlled Testing in a Live Environment 🧪
+	- Unlike A/B testing (which is more experimental), canary deployment validates real-world performance while ensuring business continuity.
+	- Helps in catching unexpected issues like model drift, bias, or infrastructure failures.
 
-kubectl create namespace grafana
+3. Faster Detection & Rollback 🔄
+	- If the new model causes failures or degrades performance, it can be rolled back instantly.
+	- No need to manually redeploy the old model, saving time and effort.
 
-helm repo add grafana https://grafana.github.io/helm-charts
+4. Avoids Full Downtime 🕒
+	- Traditional full-rollout updates risk complete failure if something goes wrong.
+	- Canary deployment keeps the old model running, ensuring continuous service availability.
 
-helm install grafana grafana/grafana \
-  --namespace grafana \
-  --version 8.8.4 \
-  --set readinessProbe.initialDelaySeconds=30 \
-  --set readinessProbe.timeoutSeconds=5 \
-  --set readinessProbe.httpGet.path=/api/health \
-  --set readinessProbe.httpGet.port=3000
+5. Optimized for Cloud & Kubernetes ☁️
+	- Modern cloud platforms (AWS, Azure, GCP) and Kubernetes support automated canary deployments.
+	- Integration with CI/CD pipelines enables seamless model updates.
 
-kubectl get secret --namespace grafana grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
-password - h5sZIuH9jTA4eSXjGHgAz6sImdk1INPOpdwx6cSu
+## Key Components and Their Roles
 
-export POD_NAME=$(kubectl get pods --namespace grafana -l "app.kubernetes.io/name=grafana,app.kubernetes.io/instance=grafana" -o jsonpath="{.items[0].metadata.name}")
+1. Amazon EKS (Elastic Kubernetes Service) - Provides a managed Kubernetes environment to host and orchestrate containerized applications, ensuring scalability, reliability, and ease of management.
 
-kubectl --namespace grafana port-forward --address 0.0.0.0 $POD_NAME 3000
-http://<EC2-IP>:3000
+2. eksctl - CLI tool for creating and managing EKS clusters.
+
+3. Istio - Service mesh that provides traffic management, security, and observability for microservices.
+
+4. KServe - Model serving platform for deploying and managing machine learning models on Kubernetes.
+
+5. TorchScript - Converts PyTorch models into a format suitable for deployment.
+
+6. Amazon S3 - Object storage service used to store the model weights.
+
+7. Monitoring and Observability Tools -
+
+ 	- Prometheus - Monitoring and alerting toolkit for collecting and querying metrics.
+  	- Grafana - Visualizes data through dashboards and graphs.
+  
+## Implementation Details - 
+
+### Code Details
+
+
+### Deployment & Monitoring Details
+
+
