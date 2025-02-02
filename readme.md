@@ -10,7 +10,7 @@ Contents -
    
 	4.1. [Code Details](#code-details)
    
-   	4.2. [Deployment & Monitoring Details](#deployment-&-monitoring-details)
+   	4.2. [Deployment and Monitoring Details](#deployment-and-monitoring-details)
    
 6. [Conclusion](#conclusion)
    
@@ -145,7 +145,7 @@ During boostrap, our code will fetch model files from S3 and load it.
 
 Now we are done with code implemenbtation, we will proceed with deployments.
 
-### Deployment & Monitoring Details
+### Deployment and Monitoring Details
 
 Flow - We will follow below flow for rollout using canary deployment
 1. Deployment of emotion detection model with 100% volume
